@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Google Login Example</title>
+    <!-- Load Google Identity Services Library -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+  </head>
+  <body>
+    <h1>Login with Google</h1>
+
+    <!-- Button to initiate Google login -->
+    <button id="login-button">Login</button>
+
+    <!-- Hidden app container that appears after successful login -->
+    <div id="app-container" style="display: none">
+      <h2>Welcome!</h2>
+
+      <!-- Input fields for row, column, and action -->
+      <h3>Send Row and Column Data</h3>
+      <label for="row-input">Row:</label>
+      <input type="number" id="row-input" placeholder="Enter row number" />
+      <br /><br />
+      <label for="column-input">Column:</label>
+      <input
+        type="number"
+        id="column-input"
+        placeholder="Enter column number"
+      />
+      <br /><br />
+      <label for="action-input">Action:</label>
+      <select id="action-input">
+        <option value="bookSlot">Book Slot</option>
+        <option value="toggleAvailability">Toggle Availability</option>
+      </select>
+      <br /><br />
+
+      <!-- Buttons to trigger GET and POST requests -->
+      <button onclick="makeGetRequest()">Get Request</button>
+      <button onclick="sendPostRequest()">Send Request</button>
+
+      <!-- Response container to display server responses -->
+      <div id="response-container"></div>
+    </div>
+
+    <script>
+      // API URL pointing to the Google Apps Script endpoint
+      let apiUrl =
+        "https://script.google.com/macros/s/AKfycbx69PxpZfQkUYubTGHj5kFX1gtzvkkt7tZ8MBMnJ6NfUuzD4UNvbM_mYTaTjtfovGKk/exec";
+
+      // Variable to store the user's Google ID token after login
+      let userToken = null;
+
+      /**
+       * Initializes Google Sign-In functionality.
+       * This function sets up the Google Identity Services library and renders the login button.
+       */
+      window.onload = function () {
+        google.accounts.id.initialize({
+          client_id:
+            "259630387599-6ojvjq37k0s35cjlht4incd55j2mlbk2.apps.googleusercontent.com", // Replace with your Client ID
+          callback: handleCredentialResponse, // Function to handle login response
+        });
+
+        // Render the Google Sign-In button with customization options
+        google.accounts.id.renderButton(
+          document.getElementById("login-button"),
+          { theme: "outline", size: "large" } // Customization options for the button
+        );
+      };
+
+      /**
+       * Makes a GET request to the backend API.
+       * This function sends the user's token as a query parameter to authenticate the request.
+       */
+      function makeGetRequest() {
+        if (!userToken) {
+          alert("You must log in first!"); // Ensure the user is logged in
+          return;
+        }
+
+        fetch(
+          `https://script.google.com/macros/s/AKfycbx69PxpZfQkUYubTGHj5kFX1gtzvkkt7tZ8MBMnJ6NfUuzD4UNvbM_mYTaTjtfovGKk/exec?token=${userToken}`,
+          {
+            method: "GET",
+          }
+        )
+          .then((res) => res.json()) // Parse the JSON response
+          .then((data) => {
+            // Display the response in the response container
+            document.getElementById("response-container").textContent =
+              JSON.stringify(data, null, 2);
+          })
+          .catch((error) => {
+            console.error("Error:", error); // Log any errors
+            document.getElementById("response-container").textContent =
+              "Error: " + error.message; // Display the error message
+          });
+      }
+
+      /**
+       * A generic function to make HTTP requests.
+       * This function handles both GET and POST requests and includes error handling.
+       *
+       * @param {string} url - The API endpoint URL.
+       * @param {object} options - The request options (method, headers, body, etc.).
+       * @returns {Promise<object>} - The parsed JSON response from the server.
+       */
+      function makeRequest(url, options) {
+        const origin = window.location.origin; // Get the current origin (domain)
+        const fullUrl = url.includes("?")
+          ? `${url}&origin=${origin}` // Append origin as a query parameter if URL already has parameters
+          : `${url}?origin=${origin}`; // Add origin as a query parameter
+
+        return fetch(fullUrl, options)
+          .then((response) => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! status: ${response.status}`); // Throw an error for non-2xx responses
+            }
+            return response.json(); // Parse the JSON response
+          })
+          .catch((error) => {
+            console.error("Request error:", error); // Log any errors
+            displayError("Network Error: " + error.message); // Display the error message
+            return { success: false, error: error.message }; // Return a standardized error object
+          });
+      }
+
+      /**
+       * Handles the response from Google Sign-In.
+       * This function extracts the user's ID token and stores it for future requests.
+       *
+       * @param {object} response - The response object from Google Sign-In.
+       */
+      function handleCredentialResponse(response) {
+        console.log("Encoded JWT ID token: " + response.credential); // Log the ID token
+        userToken = response.credential; // Store the token
+
+        // Show the app container and hide the login button after successful login
+        document.getElementById("login-button").style.display = "none";
+        document.getElementById("app-container").style.display = "block";
+      }
+
+      /**
+       * Sends a POST request to the backend API.
+       * This function collects input values, validates them, and sends the data to the server.
+       */
+      function sendPostRequest() {
+        if (!userToken) {
+          alert("You must log in first!"); // Ensure the user is logged in
+          return;
+        }
+
+        // Collect input values from the form
+        const row = document.getElementById("row-input").value;
+        const column = document.getElementById("column-input").value;
+        const action = document.getElementById("action-input").value;
+
+        // Validate inputs
+        if (!row || !column || !action) {
+          alert(
+            "Please enter both row and column values, and select an action."
+          );
+          return;
+        }
+
+        // Prepare the data to send
+        const requestData = {
+          token: userToken, // Include the token for authentication
+          row: parseInt(row, 10), // Convert row to an integer
+          col: parseInt(column, 10), // Convert column to an integer
+          action: "bookSlot", // Use the selected action
+          force: false, // Optional parameter, adjust as needed
+        };
+
+        // Send the POST request using the makeRequest function
+        makeRequest(apiUrl, {
+          redirect: "follow", // Follow redirects if any
+          method: "POST", // Use the POST method
+          body: JSON.stringify(requestData), // Convert the data to JSON
+          headers: {
+            "Content-Type": "text/plain;charset=utf-8", // Set the content type
+          },
+        }).then((data) => {
+          // Display the response in the response container
+          document.getElementById("response-container").textContent =
+            JSON.stringify(data, null, 2);
+        });
+      }
+
+      /**
+       * Displays an error message on the page.
+       *
+       * @param {string} message - The error message to display.
+       */
+      function displayError(message) {
+        document.getElementById("response-container").textContent = message;
+      }
+    </script>
+  </body>
+</html>
