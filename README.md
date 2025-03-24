@@ -1,6 +1,8 @@
 # Slot Booking System
 
-A slot booking system designed for managing indoor and outdoor game slots. Users can log in with their Google accounts, view available slots, and book or toggle the availability of slots through a user-friendly interface.
+A slot booking system designed for managing indoor and outdoor game slots. Users can log in with their Google accounts, view available slots, and book or toggle the availability of slots through a user-friendly interface.\
+\
+You can use the website through this [App-link](https://playground-slot-booking.vercel.app) 
 
 ## Table of Contents
 
